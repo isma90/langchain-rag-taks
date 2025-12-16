@@ -181,6 +181,29 @@ class ProductionLogger:
         )
         self.logger.info(json.dumps(log_data))
 
+    def log_indexing(
+        self,
+        collection_name: str,
+        vectors_indexed: int,
+        documents_indexed: int,
+        processing_time_ms: float,
+        batch_size: int = 100
+    ):
+        """Log vector indexing operation"""
+        log_data = self._build_log_entry(
+            'indexing_complete',
+            'INFO',
+            {
+                'collection_name': collection_name,
+                'vectors_indexed': vectors_indexed,
+                'documents_indexed': documents_indexed,
+                'processing_time_ms': int(processing_time_ms),
+                'batch_size': batch_size,
+                'vectors_per_second': round(vectors_indexed / (processing_time_ms / 1000), 1) if processing_time_ms > 0 else 0,
+            }
+        )
+        self.logger.info(json.dumps(log_data))
+
     def log_error(
         self,
         error_type: str,

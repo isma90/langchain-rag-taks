@@ -5,10 +5,15 @@ Validates all settings from environment variables using Pydantic.
 Ensures type safety and enforces production constraints.
 """
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field, field_validator
 from typing import Optional
 import logging
+import os
+from dotenv import load_dotenv
+
+# Load .env file explicitly
+load_dotenv('.env')
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +30,7 @@ class ProductionSettings(BaseSettings):
     # ========================================================================
     # Qdrant Cloud Configuration
     # ========================================================================
-    qdrant_url: str = Field(default='https://localhost:6333', env='QDRANT_URL')
+    qdrant_url: str = Field(default='https://localhost:6333', env='QDRANT_CLUSTER_ENDPOINT')
     qdrant_api_key: str = Field(default='default-key', env='QDRANT_API_KEY')
     qdrant_collection_name: str = Field(default='rag_documents', env='QDRANT_COLLECTION_NAME')
 
@@ -87,11 +92,12 @@ class ProductionSettings(BaseSettings):
     environment: str = Field(default='development', env='ENVIRONMENT')  # development, staging, production
     debug: bool = Field(default=False, env='DEBUG')
 
-    class Config:
-        env_file = '.env'
-        env_file_encoding = 'utf-8'
-        case_sensitive = False
-        extra = 'ignore'  # Ignore extra fields from .env file
+    model_config = SettingsConfigDict(
+        env_file='.env',
+        env_file_encoding='utf-8',
+        case_sensitive=False,
+        extra='ignore'
+    )
 
     # ========================================================================
     # Validators
@@ -117,8 +123,10 @@ class ProductionSettings(BaseSettings):
     @classmethod
     def validate_qdrant_url(cls, v: str) -> str:
         """Validate Qdrant URL uses HTTPS in production"""
-        if not v.startswith('https://') and not v.startswith('http://localhost'):
-            raise ValueError('QDRANT_URL must use https:// for security (http://localhost allowed for dev)')
+        # Allow localhost for development, HTTPS for Cloud
+        if v and v != 'https://localhost:6333':
+            if not (v.startswith('https://') or v.startswith('http://localhost')):
+                raise ValueError('QDRANT_URL must use https:// for security (http://localhost allowed for dev)')
         return v
 
     @field_validator('embedding_dimensions')
@@ -161,9 +169,24 @@ class ProductionSettings(BaseSettings):
         """Check if running in development"""
         return self.environment == 'development'
 
+    @property
+    def chunk_size_tokens(self) -> int:
+        """Alias for chunk_size (in tokens)"""
+        return self.chunk_size
+
+    @property
+    def chunk_overlap_tokens(self) -> int:
+        """Alias for chunk_overlap (in tokens)"""
+        return self.chunk_overlap
+
     def __init__(self, **data):
         """Initialize settings and log configuration"""
         super().__init__(**data)
+
+        # Override with environment variables if they exist
+        if os.getenv('QDRANT_CLUSTER_ENDPOINT'):
+            self.qdrant_url = os.getenv('QDRANT_CLUSTER_ENDPOINT')
+
         logger.info(f"Loaded configuration for environment: {self.environment}")
         if self.is_production:
             logger.warning("Running in PRODUCTION mode. Ensure all security measures are in place.")
