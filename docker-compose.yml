@@ -1,0 +1,156 @@
+version: '3.9'
+
+services:
+  # ============================================================================
+  # Servicio API RAG
+  # ============================================================================
+  rag-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rag-api
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      # OpenAI Configuration
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o}
+
+      # Qdrant Configuration (usando servicio qdrant)
+      QDRANT_CLUSTER_ENDPOINT: ${QDRANT_URL:-http://qdrant:6333}
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+      QDRANT_COLLECTION_NAME: ${QDRANT_COLLECTION_NAME:-rag_documents}
+
+      # Redis Configuration (usando servicio redis)
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      CACHE_TTL: ${CACHE_TTL:-3600}
+
+      # LangSmith Configuration (optional)
+      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
+      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-rag-project}
+
+      # Server Configuration
+      LANGSERVE_PORT: 8000
+      LANGSERVE_HOST: 0.0.0.0
+
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+
+      # Environment
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DEBUG: ${DEBUG:-false}
+
+    # Healthcheck
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Volumes
+    volumes:
+      - ./src:/app/src:ro
+      - ./logs:/app/logs
+
+    # Dependencias
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+    # Networks
+    networks:
+      - rag-network
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================================
+  # Qdrant Vector Database
+  # ============================================================================
+  qdrant:
+    image: qdrant/qdrant:v1.7.0
+    container_name: rag-qdrant
+    restart: unless-stopped
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+
+    environment:
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+
+    volumes:
+      - qdrant-data:/qdrant/storage
+      - qdrant-snapshots:/qdrant/snapshots
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+    networks:
+      - rag-network
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================================
+  # Redis Cache
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: rag-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis}
+
+    volumes:
+      - redis-data:/data
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+    networks:
+      - rag-network
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# ============================================================================
+# Volúmenes persistentes
+# ============================================================================
+volumes:
+  qdrant-data:
+    driver: local
+  qdrant-snapshots:
+    driver: local
+  redis-data:
+    driver: local
+
+# ============================================================================
+# Red compartida
+# ============================================================================
+networks:
+  rag-network:
+    driver: bridge
