@@ -37,11 +37,14 @@ Build a **production-ready Retrieval-Augmented Generation (RAG) system** that co
 - **UV** - Dependency management in Docker builds
 - **Nginx** - Reverse proxy (future)
 
-### Frontend (To be implemented)
+### Frontend (Phase 6 - Proposed)
 - **React 19.2.3 + TypeScript** - UI framework
-- **Vite** - Build tool
-- **Tailwind CSS** - Styling
-- **Axios** - HTTP client
+- **Vite 5.0+** - Build tool
+- **Tailwind CSS 3.4+** - Styling (utility-first)
+- **Axios 1.6+** - HTTP client
+- **React Router 7.0+** - Client-side routing
+- **Vitest + React Testing Library** - Testing framework
+- **Playwright/Cypress** - E2E testing
 
 ### Infrastructure
 - **Qdrant Cloud** - Managed vector database
@@ -241,21 +244,36 @@ Each chunk includes extracted:
 ## 📊 Current Implementation Status
 
 ### ✅ Completed (Phases 1-5)
-- Phase 1: Logging, configuration, utilities
-- Phase 2: Chunking strategies (recursive, semantic, markdown, HTML)
-- Phase 3: Vector store integration (Qdrant Cloud)
-- Phase 4: RAG pipeline with LCEL chains
-- Phase 5: Docker containerization and deployment scripts
+- **Phase 1**: Logging, configuration, utilities, resilience patterns
+- **Phase 2**: 4 chunking strategies (recursive, semantic, markdown, HTML) with token-based sizing
+- **Phase 3**: Vector store integration (Qdrant Cloud) with metadata enrichment and 4 retrieval strategies
+- **Phase 4**: RAG pipeline with LCEL chains, 4 query-type specific prompts, RAGService
+- **Phase 5**: Docker containerization, FastAPI REST API, deployment scripts
 
-### 🔄 In Progress
-- Frontend implementation (React + TypeScript)
+### 🔄 Proposed (Phase 6)
+- **Phase 6**: Frontend UI - Interactive chatbot (React 19 + TypeScript + Vite)
+  - Chat interface with message history and streaming responses
+  - Document management (upload, list, delete)
+  - Query configuration (type selector, retrieval parameters)
+  - Responsive design (mobile-first, 3 breakpoints)
+  - WCAG 2.1 Level AA accessibility
+  - Dark/light theme support
+  - Session persistence (localStorage, Phase 7: backend)
+  - Status: PROPOSED (awaiting approval for implementation)
 
 ### 📋 Planned
-- Phase 6: Kubernetes deployment
-- Phase 7: CI/CD pipeline (GitHub Actions)
-- Phase 8: Advanced monitoring (Prometheus/Grafana)
-- Evaluation datasets and metrics
-- Documentation enhancements
+- **Phase 7**: Backend Session Storage + Evaluation Datasets
+  - Save conversations to backend (IndexedDB/API)
+  - Create evaluation datasets (QA pairs)
+  - Multi-user support setup
+- **Phase 8**: Production Monitoring & Analytics
+  - Prometheus/Grafana for metrics
+  - User analytics
+  - Error tracking (Sentry)
+- **Phase 9**: Advanced Features
+  - Real-time collaboration (WebSockets)
+  - AI-powered suggestions
+  - Document annotation
 
 ## 🎯 Success Criteria
 

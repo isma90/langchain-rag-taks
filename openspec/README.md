@@ -87,6 +87,12 @@ Docker multi-stage, docker-compose, FastAPI REST API, scripts de deployment.
 
 **Files**: `phase-5-deployment/{proposal,spec}.md`
 
+### Phase 6: Frontend UI - Interactive Chatbot 🔄
+React 19 + TypeScript + Vite, chat interface, document management, responsive design, WCAG 2.1 accessible.
+
+**Files**: `phase-6-frontend-ui/{proposal,design,tasks}.md`, `phase-6-frontend-ui/specs/frontend/spec.md`
+**Status**: PROPOSED (awaiting approval)
+
 ## Cómo Usar
 
 ### Leer Especificaciones
@@ -198,4 +204,7 @@ Phase 1 (Foundation)
 ---
 
 **Última actualización**: December 22, 2025
-**Status**: 5/8 Fases documentadas (62.5%)
+**Status**: 6/8 Fases documentadas (75%)
+- ✅ 5 fases IMPLEMENTED (Phases 1-5)
+- 🔄 1 fase PROPOSED (Phase 6 - Frontend)
+- 📋 2 fases PENDING (Phases 7-8)
