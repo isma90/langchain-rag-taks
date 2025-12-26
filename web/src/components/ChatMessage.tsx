@@ -40,7 +40,12 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ message, isUser, onCop
           </div>
         )}
         <div className="text-xs mt-2 opacity-50">
-          {message.timestamp.toLocaleTimeString()}
+          {(() => {
+            const timestamp = typeof message.timestamp === 'string'
+              ? new Date(message.timestamp)
+              : message.timestamp
+            return timestamp.toLocaleTimeString()
+          })()}
         </div>
       </div>
     </div>
