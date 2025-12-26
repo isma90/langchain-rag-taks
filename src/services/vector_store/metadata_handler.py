@@ -3,6 +3,7 @@ Metadata Handler
 
 Enriches document chunks with extracted metadata using LLM.
 Includes: summary, keywords, topic, complexity level, etc.
+Includes automatic rate limiting to stay within OpenAI's 3,500 RPM tier.
 """
 
 import logging
@@ -16,6 +17,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 from src.config import settings
 from src.utils.logging_config import get_logger
+from src.services.rate_limiting import get_rate_limiter
 
 logger = get_logger(__name__)
 
@@ -57,8 +59,9 @@ class MetadataHandler:
             self.llm = self.llm.with_structured_output(DocumentMetadata)
 
         self.use_structured_output = use_structured_output
+        self.rate_limiter = get_rate_limiter()
 
-        logger.info("MetadataHandler initialized")
+        logger.info("MetadataHandler initialized (rate limiting: 3,500 RPM)")
 
     def extract_metadata(self, text: str) -> Dict[str, Any]:
         """
@@ -70,6 +73,9 @@ class MetadataHandler:
         Returns:
             Dictionary with extracted metadata
         """
+        # Apply rate limiting
+        delay = self.rate_limiter.request("metadata_extraction")
+
         prompt = ChatPromptTemplate.from_template("""
 Analyze the following text and extract metadata:
 

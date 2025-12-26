@@ -3,6 +3,7 @@ RAG Chain Builder
 
 Builds LangChain Expression Language (LCEL) chains for question-answering.
 Supports multiple query types with specialized prompt templates.
+Includes automatic rate limiting to stay within OpenAI's 3,500 RPM tier.
 """
 
 import logging
@@ -16,6 +17,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
 from src.utils.logging_config import get_logger
 from src.config.settings import settings
+from src.services.rate_limiting import get_rate_limiter
 
 logger = get_logger(__name__)
 
@@ -61,7 +63,11 @@ class RAGChainBuilder:
             max_retries=3,  # Retry on rate limit (429) with exponential backoff
         )
         self.temperature = temperature
-        logger.info(f"RAGChainBuilder initialized with {settings.openai_model}")
+        self.rate_limiter = get_rate_limiter()
+        logger.info(
+            f"RAGChainBuilder initialized with {settings.openai_model} "
+            f"(rate limiting: 3,500 RPM)"
+        )
 
     def _format_docs(self, docs) -> str:
         """Format retrieved documents for context."""

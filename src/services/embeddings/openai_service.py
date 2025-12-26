@@ -2,6 +2,7 @@
 OpenAI Embeddings Service
 
 Provides unified embeddings service with cost tracking and caching.
+Includes automatic rate limiting to stay within OpenAI's 3,500 RPM tier.
 """
 
 import logging
@@ -11,6 +12,7 @@ from functools import lru_cache
 from langchain_openai import OpenAIEmbeddings
 from src.config import settings
 from src.utils.logging_config import get_logger
+from src.services.rate_limiting import get_rate_limiter
 
 logger = get_logger(__name__)
 
@@ -41,9 +43,11 @@ class EmbeddingsService:
         )
 
         self.total_tokens_used = 0
+        self.rate_limiter = get_rate_limiter()
+
         logger.info(
             f"EmbeddingsService initialized: {self.model} "
-            f"with {self.dimensions} dimensions"
+            f"with {self.dimensions} dimensions (rate limiting: 3,500 RPM)"
         )
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
@@ -56,13 +60,19 @@ class EmbeddingsService:
         Returns:
             List of embedding vectors
         """
+        # Apply rate limiting
+        delay = self.rate_limiter.request("embeddings")
+
         embeddings = self.client.embed_documents(texts)
 
         # Track tokens (rough estimate: ~1 token per word, ~5 words per 10 chars)
         estimated_tokens = sum(len(text) // 10 for text in texts) if texts else 0
         self.total_tokens_used += estimated_tokens
 
-        logger.info(f"Embedded {len(texts)} documents (~{estimated_tokens} tokens)")
+        logger.info(
+            f"Embedded {len(texts)} documents (~{estimated_tokens} tokens, "
+            f"rate limit delay: {delay:.3f}s)"
+        )
 
         return embeddings
 
@@ -76,13 +86,16 @@ class EmbeddingsService:
         Returns:
             Embedding vector
         """
+        # Apply rate limiting
+        delay = self.rate_limiter.request("embeddings")
+
         embedding = self.client.embed_query(query)
 
         # Track tokens
         estimated_tokens = len(query) // 10
         self.total_tokens_used += estimated_tokens
 
-        logger.info(f"Embedded query (~{estimated_tokens} tokens)")
+        logger.info(f"Embedded query (~{estimated_tokens} tokens, rate limit delay: {delay:.3f}s)")
 
         return embedding
 
