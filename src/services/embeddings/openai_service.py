@@ -37,6 +37,7 @@ class EmbeddingsService:
             model=self.model,
             dimensions=self.dimensions,
             api_key=settings.openai_api_key,
+            max_retries=3,  # Retry on rate limit (429) with exponential backoff
         )
 
         self.total_tokens_used = 0

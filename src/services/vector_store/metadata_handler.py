@@ -49,6 +49,7 @@ class MetadataHandler:
             model=settings.openai_model,
             temperature=0,  # Deterministic for consistency
             api_key=settings.openai_api_key,
+            max_retries=3,  # Retry on rate limit (429) with exponential backoff
         )
 
         # Use structured output if available

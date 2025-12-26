@@ -58,6 +58,7 @@ class RAGChainBuilder:
             model=settings.openai_model,
             temperature=temperature,
             api_key=settings.openai_api_key,
+            max_retries=3,  # Retry on rate limit (429) with exponential backoff
         )
         self.temperature = temperature
         logger.info(f"RAGChainBuilder initialized with {settings.openai_model}")
