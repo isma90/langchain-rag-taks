@@ -108,6 +108,46 @@ services:
         max-file: "3"
 
   # ============================================================================
+  # Frontend - React UI
+  # ============================================================================
+  frontend:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: rag-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+
+    environment:
+      # Frontend configuration
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+
+    # Healthcheck
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    # Depends on API being ready
+    depends_on:
+      rag-api:
+        condition: service_healthy
+
+    # Networks
+    networks:
+      - rag-network
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================================
   # Redis Cache
   # ============================================================================
   redis:
