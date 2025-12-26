@@ -68,18 +68,12 @@ export const api = {
   /**
    * Initialize collection with documents
    */
-  async initializeCollection(
-    collectionName: string,
-    documents: Array<{ title: string; content: string }>,
-    chunkingStrategy: string = 'recursive',
-    enableMetadata: boolean = true
-  ): Promise<InitializeResponse> {
-    const { data } = await apiClient.post<InitializeResponse>('/initialize', {
-      collection_name: collectionName,
-      documents,
-      chunking_strategy: chunkingStrategy,
-      enable_metadata: enableMetadata,
-    })
+  async initializeCollection(params: {
+    collection_name: string
+    documents: Array<{ content: string; source: string; metadata?: Record<string, any> }>
+    force_recreate?: boolean
+  }): Promise<InitializeResponse> {
+    const { data } = await apiClient.post<InitializeResponse>('/initialize', params)
     return data
   },
 
