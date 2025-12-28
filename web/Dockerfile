@@ -3,14 +3,16 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
+# Copy only package files (cacheable layer)
 COPY package*.json ./
 
-# Install dependencies
+# Install dependencies (cached until package*.json changes)
 RUN npm ci --legacy-peer-deps
 
-# Copy source code
-COPY . .
+# Copy source code (invalidates cache only if code changes)
+COPY tsconfig.json vite.config.ts ./
+COPY src ./src
+COPY public ./public
 
 # Build application
 RUN npm run build

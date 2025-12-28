@@ -10,19 +10,21 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /build
 
 # Instalar dependencias del sistema necesarias para construcción
+# (cacheable - only changes if deps change)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libssl-dev \
     libffi-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar requirements
+# Copiar SOLO requirements (cacheable layer)
 COPY requirements.txt .
 
 # Crear virtual environment y instalar dependencias
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-RUN pip install --upgrade pip setuptools wheel && \
+# (cached until requirements.txt changes)
+RUN python -m venv /opt/venv && \
+    . /opt/venv/bin/activate && \
+    pip install --upgrade pip setuptools wheel && \
     pip install -r requirements.txt
 
 # ============================================================================
@@ -53,11 +55,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar venv desde builder
+# Copiar venv desde builder (cached dependencies)
 COPY --from=builder /opt/venv /opt/venv
 
-# Copiar código de aplicación
-COPY --chown=appuser:appuser . .
+# Copiar solo archivos de configuración y estructura (pequeño layer)
+COPY --chown=appuser:appuser .env .env.example ./
+COPY --chown=appuser:appuser src ./src
+
+# Copiar assets/data si existen (opcional)
+COPY --chown=appuser:appuser public ./public 2>/dev/null || true
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
