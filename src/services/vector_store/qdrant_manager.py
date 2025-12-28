@@ -130,19 +130,33 @@ class QdrantVectorStoreManager:
             try:
                 self.client.delete_collection(collection_name)
                 logger.info(f"Deleted existing collection: {collection_name}")
-            except ResponseHandlingException:
+            except (ResponseHandlingException, Exception):
                 pass  # Collection doesn't exist, that's OK
 
-        # Create vector store using langchain integration
-        vector_store = QdrantVectorStore.from_documents(
-            documents=documents,
-            embedding=self.embeddings_service.client,
-            url=self.url,
-            api_key=self.api_key,
-            collection_name=collection_name,
-            batch_size=batch_size,
-            force_recreate=force_recreate,
-        )
+        # Try to create vector store
+        # Retry with force_recreate=True if initial creation fails
+        try:
+            vector_store = QdrantVectorStore.from_documents(
+                documents=documents,
+                embedding=self.embeddings_service.client,
+                url=self.url,
+                api_key=self.api_key,
+                collection_name=collection_name,
+                batch_size=batch_size,
+                force_recreate=force_recreate,
+            )
+        except (ResponseHandlingException, Exception) as e:
+            logger.warning(f"First attempt failed: {e}. Retrying with force_recreate=True")
+            # Try again with force_recreate=True to handle collection issues
+            vector_store = QdrantVectorStore.from_documents(
+                documents=documents,
+                embedding=self.embeddings_service.client,
+                url=self.url,
+                api_key=self.api_key,
+                collection_name=collection_name,
+                batch_size=batch_size,
+                force_recreate=True,  # Force recreation
+            )
 
         processing_time = (time.time() - start_time) * 1000
 
