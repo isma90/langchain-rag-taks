@@ -46,6 +46,9 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-production}
       DEBUG: ${DEBUG:-false}
 
+      # Rate Limiting
+      RATE_LIMIT_RPM: ${RATE_LIMIT_RPM:-5}
+
     # Healthcheck
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]

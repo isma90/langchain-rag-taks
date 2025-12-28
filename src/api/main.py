@@ -113,8 +113,8 @@ app = FastAPI(
 # Middleware
 # ============================================================================
 
-# Rate Limiting (OpenAI 3,500 RPM limit for basic tier)
-add_rate_limit_middleware(app, max_rpm=3500, adaptive=False)
+# Rate Limiting (Custom RPM limit)
+add_rate_limit_middleware(app, max_rpm=5, adaptive=False)
 
 # CORS
 app.add_middleware(

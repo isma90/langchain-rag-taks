@@ -201,11 +201,11 @@ def get_rate_limiter() -> ServiceRateLimiter:
     """Get or create global rate limiter."""
     global _rate_limiter
     if _rate_limiter is None:
-        _rate_limiter = ServiceRateLimiter(max_rpm=3500)  # OpenAI basic tier
+        _rate_limiter = ServiceRateLimiter(max_rpm=5)  # Custom RPM limit
     return _rate_limiter
 
 
-def initialize_rate_limiter(max_rpm: int = 3500) -> ServiceRateLimiter:
+def initialize_rate_limiter(max_rpm: int = 5) -> ServiceRateLimiter:
     """Initialize rate limiter with custom settings."""
     global _rate_limiter
     _rate_limiter = ServiceRateLimiter(max_rpm=max_rpm)
