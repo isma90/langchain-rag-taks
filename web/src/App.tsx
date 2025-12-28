@@ -2,7 +2,7 @@
  * Main App Component
  */
 
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { ChatMessage } from './components/ChatMessage'
 import { ChatInput } from './components/ChatInput'
 import { DocumentUpload } from './components/DocumentUpload'
@@ -20,6 +20,16 @@ function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentView, setCurrentView] = useState<View>('chat')
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Auto-scroll to bottom when new messages arrive
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
 
   const handleSendMessage = async (content: string) => {
     setError(null)
@@ -125,6 +135,8 @@ function App() {
                 {messages.map((msg) => (
                   <ChatMessage key={msg.id} message={msg} isUser={msg.sender === 'user'} />
                 ))}
+                {/* Scroll anchor - always at the bottom */}
+                <div ref={messagesEndRef} />
               </div>
             )}
           </main>
