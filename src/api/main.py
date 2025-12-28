@@ -114,7 +114,7 @@ app = FastAPI(
 # ============================================================================
 
 # Rate Limiting (Custom RPM limit)
-add_rate_limit_middleware(app, max_rpm=5, adaptive=False)
+add_rate_limit_middleware(app, max_rpm=10, adaptive=False)
 
 # CORS
 app.add_middleware(
