@@ -28,6 +28,12 @@ class ProductionSettings(BaseSettings):
     openai_model: str = Field(default='gpt-4o', env='OPENAI_MODEL')
 
     # ========================================================================
+    # Google Gemini Configuration (for metadata extraction & embeddings)
+    # ========================================================================
+    gemini_api_key: str = Field(..., env='GEMINI_API_KEY')
+    gemini_model: str = Field(default='gemini-2.5-flash', env='GEMINI_MODEL')
+
+    # ========================================================================
     # Qdrant Cloud Configuration
     # ========================================================================
     qdrant_url: str = Field(default='https://localhost:6333', env='QDRANT_CLUSTER_ENDPOINT')

@@ -13,7 +13,7 @@ from datetime import datetime
 
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 from src.config import settings
 from src.utils.logging_config import get_logger
@@ -42,16 +42,15 @@ class MetadataHandler:
 
     def __init__(self, use_structured_output: bool = True):
         """
-        Initialize metadata handler.
+        Initialize metadata handler with Google Gemini.
 
         Args:
             use_structured_output: Use LLM structured output (Pydantic)
         """
-        self.llm = ChatOpenAI(
-            model=settings.openai_model,
+        self.llm = ChatGoogleGenerativeAI(
+            model=settings.gemini_model,  # gemini-2.5-flash
             temperature=0,  # Deterministic for consistency
-            api_key=settings.openai_api_key,
-            max_retries=3,  # Retry on rate limit (429) with exponential backoff
+            google_api_key=settings.gemini_api_key,
         )
 
         # Use structured output if available
@@ -61,7 +60,7 @@ class MetadataHandler:
         self.use_structured_output = use_structured_output
         self.rate_limiter = get_rate_limiter()
 
-        logger.info("MetadataHandler initialized (rate limiting: 3,500 RPM)")
+        logger.info(f"MetadataHandler initialized with Gemini ({settings.gemini_model}, rate limiting: 3,500 RPM)")
 
     def extract_metadata(self, text: str) -> Dict[str, Any]:
         """
