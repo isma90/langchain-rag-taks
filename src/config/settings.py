@@ -25,7 +25,7 @@ class ProductionSettings(BaseSettings):
     # OpenAI Configuration
     # ========================================================================
     openai_api_key: str = Field(..., env='OPENAI_API_KEY')
-    openai_model: str = Field(default='gpt-4o', env='OPENAI_MODEL')
+    openai_model: str = Field(default='gpt-4o-mini', env='OPENAI_MODEL')
 
     # ========================================================================
     # Google Gemini Configuration (for metadata extraction & embeddings)
