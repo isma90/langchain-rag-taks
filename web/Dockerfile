@@ -10,9 +10,10 @@ COPY package*.json ./
 RUN npm ci --legacy-peer-deps
 
 # Copy source code (invalidates cache only if code changes)
-COPY tsconfig.json vite.config.ts ./
+COPY tsconfig.json tsconfig.node.json vite.config.ts postcss.config.js tailwind.config.js ./
 COPY src ./src
 COPY public ./public
+COPY index.html ./
 
 # Build application
 RUN npm run build
