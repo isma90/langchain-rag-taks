@@ -65,6 +65,13 @@ class ProductionSettings(BaseSettings):
     # ========================================================================
     embedding_model: str = Field(default='text-embedding-3-large', env='EMBEDDING_MODEL')
     embedding_dimensions: int = Field(default=512, env='EMBEDDING_DIMENSIONS')
+    embeddings_provider: str = Field(default='gemini', env='EMBEDDINGS_PROVIDER')  # gemini or openai
+
+    # ========================================================================
+    # Provider Configuration
+    # ========================================================================
+    metadata_provider: str = Field(default='gemini', env='METADATA_PROVIDER')  # gemini or openai
+    qa_provider: str = Field(default='openai', env='QA_PROVIDER')  # gemini or openai
 
     # ========================================================================
     # Server Configuration
@@ -160,6 +167,33 @@ class ProductionSettings(BaseSettings):
         if v not in valid_envs:
             raise ValueError(f'environment must be one of: {", ".join(valid_envs)}')
         return v
+
+    @field_validator('embeddings_provider')
+    @classmethod
+    def validate_embeddings_provider(cls, v: str) -> str:
+        """Validate embeddings provider"""
+        valid_providers = ['gemini', 'openai']
+        if v.lower() not in valid_providers:
+            raise ValueError(f'embeddings_provider must be one of: {", ".join(valid_providers)}')
+        return v.lower()
+
+    @field_validator('metadata_provider')
+    @classmethod
+    def validate_metadata_provider(cls, v: str) -> str:
+        """Validate metadata provider"""
+        valid_providers = ['gemini', 'openai']
+        if v.lower() not in valid_providers:
+            raise ValueError(f'metadata_provider must be one of: {", ".join(valid_providers)}')
+        return v.lower()
+
+    @field_validator('qa_provider')
+    @classmethod
+    def validate_qa_provider(cls, v: str) -> str:
+        """Validate QA provider"""
+        valid_providers = ['gemini', 'openai']
+        if v.lower() not in valid_providers:
+            raise ValueError(f'qa_provider must be one of: {", ".join(valid_providers)}')
+        return v.lower()
 
     # ========================================================================
     # Properties

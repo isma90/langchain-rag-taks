@@ -14,6 +14,7 @@ from datetime import datetime
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 from src.config import settings
 from src.utils.logging_config import get_logger
@@ -40,27 +41,42 @@ class MetadataHandler:
     Adds semantic information for better retrieval and filtering.
     """
 
-    def __init__(self, use_structured_output: bool = True):
+    def __init__(self, use_structured_output: bool = True, provider: Optional[str] = None):
         """
-        Initialize metadata handler with Google Gemini.
+        Initialize metadata handler with configurable LLM provider.
 
         Args:
             use_structured_output: Use LLM structured output (Pydantic)
+            provider: LLM provider to use ('gemini' or 'openai'). If None, uses settings.metadata_provider
         """
-        self.llm = ChatGoogleGenerativeAI(
-            model=settings.gemini_model,  # gemini-2.5-flash
-            temperature=0,  # Deterministic for consistency
-            google_api_key=settings.gemini_api_key,
-        )
+        provider = provider or settings.metadata_provider
+        self.provider = provider.lower()
+        self.use_structured_output = use_structured_output
+        self.rate_limiter = get_rate_limiter()
+
+        # Initialize LLM based on provider
+        if self.provider == 'gemini':
+            self.llm = ChatGoogleGenerativeAI(
+                model=settings.gemini_model,  # gemini-2.5-flash
+                temperature=0,  # Deterministic for consistency
+                google_api_key=settings.gemini_api_key,
+            )
+            provider_info = f"Gemini ({settings.gemini_model})"
+        elif self.provider == 'openai':
+            self.llm = ChatOpenAI(
+                model=settings.openai_model,  # gpt-4o-mini
+                temperature=0,  # Deterministic for consistency
+                api_key=settings.openai_api_key,
+            )
+            provider_info = f"OpenAI ({settings.openai_model})"
+        else:
+            raise ValueError(f"Unsupported metadata provider: {self.provider}")
 
         # Use structured output if available
         if use_structured_output:
             self.llm = self.llm.with_structured_output(DocumentMetadata)
 
-        self.use_structured_output = use_structured_output
-        self.rate_limiter = get_rate_limiter()
-
-        logger.info(f"MetadataHandler initialized with Gemini ({settings.gemini_model}, rate limiting: 3,500 RPM)")
+        logger.info(f"MetadataHandler initialized with {provider_info}, rate limiting: {settings.rate_limit_rpm} RPM")
 
     def extract_metadata(self, text: str) -> Dict[str, Any]:
         """

@@ -18,7 +18,7 @@ from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 from qdrant_client.http.exceptions import ResponseHandlingException
 from src.config import settings
-from src.services.embeddings.gemini_service import GeminiEmbeddingsService
+from src.services.embeddings.embeddings_factory import create_embeddings_service
 from src.utils.logging_config import get_logger
 from src.utils.resilience import retry_with_backoff, APICircuitBreaker
 
@@ -86,8 +86,9 @@ class QdrantVectorStoreManager:
             recovery_timeout=60,
         )
 
-        # Use Gemini embeddings (step 5) - more cost-effective than OpenAI
-        self.embeddings_service = GeminiEmbeddingsService()
+        # Create embeddings service based on provider configuration
+        # Default: Gemini (more cost-effective), can be overridden with EMBEDDINGS_PROVIDER env var
+        self.embeddings_service = create_embeddings_service()
 
     @retry_with_backoff(max_attempts=3, initial_delay=1.0)
     def create_collection(
