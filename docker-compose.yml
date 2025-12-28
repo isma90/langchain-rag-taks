@@ -17,6 +17,10 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o}
 
+      # Google Gemini Configuration (for metadata extraction & embeddings)
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+
       # Qdrant Configuration (usando servicio qdrant)
       QDRANT_CLUSTER_ENDPOINT: ${QDRANT_URL:-http://qdrant:6333}
       QDRANT_API_KEY: ${QDRANT_API_KEY:-}
@@ -58,7 +62,7 @@ services:
     # Dependencias
     depends_on:
       qdrant:
-        condition: service_healthy
+        condition: service_started
       redis:
         condition: service_healthy
 
@@ -134,7 +138,7 @@ services:
     # Depends on API being ready
     depends_on:
       rag-api:
-        condition: service_healthy
+        condition: service_started
 
     # Networks
     networks:
