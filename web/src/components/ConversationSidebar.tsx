@@ -71,12 +71,13 @@ export function ConversationSidebar({
         </button>
 
         {/* New Conversation Button */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 space-y-2">
           <button
             onClick={onNewConversation}
-            className="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded font-medium transition"
+            className="w-full px-4 py-3 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-lg font-semibold transition shadow-md hover:shadow-lg flex items-center justify-center gap-2"
           >
-            ➕ New Chat
+            <span className="text-lg">➕</span>
+            <span>New Conversation</span>
           </button>
         </div>
 
@@ -121,8 +122,17 @@ export function ConversationSidebar({
         </div>
 
         {/* Sidebar Footer */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
-          <p>{sessions.length} conversation{sessions.length !== 1 ? 's' : ''}</p>
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
+          <button
+            onClick={onNewConversation}
+            className="w-full px-3 py-2 text-sm bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-medium transition flex items-center justify-center gap-2"
+          >
+            <span>➕</span>
+            <span>Start New Chat</span>
+          </button>
+          <div className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1">
+            <p className="font-medium">{sessions.length} conversation{sessions.length !== 1 ? 's' : ''} saved</p>
+          </div>
         </div>
       </aside>
 
