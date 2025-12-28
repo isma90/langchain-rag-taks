@@ -372,28 +372,75 @@ async def _process_upload_background(
 async def answer_question(request: QuestionRequest):
     """
     Answer a question using the RAG pipeline.
+    Auto-initializes from Qdrant Cloud if service not already initialized.
     """
     try:
         logger.info(f"Answering question: {request.question[:100]}...")
 
         service = get_rag_service()
-        response = service.answer_question(
-            question=request.question,
-            query_type=request.query_type,
-            k=request.k
-        )
 
-        return AnswerResponse(
-            answer=response.answer,
-            query_type=response.query_type,
-            documents_used=response.documents_used,
-            sources=response.sources,
-            retrieval_time_ms=response.retrieval_time_ms,
-            generation_time_ms=response.generation_time_ms,
-            total_time_ms=response.total_time_ms,
-            model=response.model
-        )
+        # Check if service needs initialization
+        try:
+            # Try to answer the question directly
+            response = service.answer_question(
+                question=request.question,
+                query_type=request.query_type,
+                k=request.k
+            )
+            return AnswerResponse(
+                answer=response.answer,
+                query_type=response.query_type,
+                documents_used=response.documents_used,
+                sources=response.sources,
+                retrieval_time_ms=response.retrieval_time_ms,
+                generation_time_ms=response.generation_time_ms,
+                total_time_ms=response.total_time_ms,
+                model=response.model
+            )
+        except Exception as e:
+            if "not initialized" in str(e).lower():
+                # Auto-initialize from Qdrant Cloud
+                logger.info("Service not initialized. Auto-initializing from Qdrant Cloud...")
+                try:
+                    # Initialize with a minimal document - this loads from Qdrant Cloud
+                    from langchain_core.documents import Document
+                    service.initialize_from_documents(
+                        documents=[Document(
+                            page_content="Auto-initializing from Qdrant Cloud collection",
+                            metadata={"source": "qdrant_cloud"}
+                        )],
+                        force_recreate=False
+                    )
+                    logger.info("Auto-initialization from Qdrant Cloud completed")
 
+                    # Now try the question again
+                    response = service.answer_question(
+                        question=request.question,
+                        query_type=request.query_type,
+                        k=request.k
+                    )
+                    return AnswerResponse(
+                        answer=response.answer,
+                        query_type=response.query_type,
+                        documents_used=response.documents_used,
+                        sources=response.sources,
+                        retrieval_time_ms=response.retrieval_time_ms,
+                        generation_time_ms=response.generation_time_ms,
+                        total_time_ms=response.total_time_ms,
+                        model=response.model
+                    )
+                except Exception as init_error:
+                    logger.error(f"Auto-initialization failed: {init_error}")
+                    raise HTTPException(
+                        status_code=503,
+                        detail=f"Service initialization failed. Please call /initialize first. Error: {str(init_error)}"
+                    )
+            else:
+                # Some other error occurred
+                raise
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error answering question: {e}")
         raise HTTPException(status_code=500, detail=str(e))
