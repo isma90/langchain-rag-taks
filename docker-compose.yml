@@ -26,9 +26,9 @@ services:
       METADATA_PROVIDER: ${METADATA_PROVIDER:-openai}
       QA_PROVIDER: ${QA_PROVIDER:-openai}
 
-      # Qdrant Configuration (usando servicio qdrant)
-      QDRANT_CLUSTER_ENDPOINT: ${QDRANT_URL:-http://qdrant:6333}
-      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+      # Qdrant Cloud Configuration
+      QDRANT_CLUSTER_ENDPOINT: ${QDRANT_CLUSTER_ENDPOINT}
+      QDRANT_API_KEY: ${QDRANT_API_KEY}
       QDRANT_COLLECTION_NAME: ${QDRANT_COLLECTION_NAME:-rag_documents}
 
       # Redis Configuration (usando servicio redis)
@@ -69,8 +69,6 @@ services:
 
     # Dependencias
     depends_on:
-      qdrant:
-        condition: service_started
       redis:
         condition: service_healthy
 
@@ -79,40 +77,6 @@ services:
       - rag-network
 
     # Logging
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # ============================================================================
-  # Qdrant Vector Database
-  # ============================================================================
-  qdrant:
-    image: qdrant/qdrant:v1.7.0
-    container_name: rag-qdrant
-    restart: unless-stopped
-    ports:
-      - "${QDRANT_PORT:-6333}:6333"
-      - "${QDRANT_GRPC_PORT:-6334}:6334"
-
-    environment:
-      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
-
-    volumes:
-      - qdrant-data:/qdrant/storage
-      - qdrant-snapshots:/qdrant/snapshots
-
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 5s
-
-    networks:
-      - rag-network
-
     logging:
       driver: "json-file"
       options:
@@ -193,10 +157,6 @@ services:
 # Volúmenes persistentes
 # ============================================================================
 volumes:
-  qdrant-data:
-    driver: local
-  qdrant-snapshots:
-    driver: local
   redis-data:
     driver: local
 
