@@ -22,8 +22,8 @@ services:
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
 
       # Provider Configuration (can switch between providers)
-      EMBEDDINGS_PROVIDER: ${EMBEDDINGS_PROVIDER:-gemini}
-      METADATA_PROVIDER: ${METADATA_PROVIDER:-gemini}
+      EMBEDDINGS_PROVIDER: ${EMBEDDINGS_PROVIDER:-openai}
+      METADATA_PROVIDER: ${METADATA_PROVIDER:-openai}
       QA_PROVIDER: ${QA_PROVIDER:-openai}
 
       # Qdrant Configuration (usando servicio qdrant)
