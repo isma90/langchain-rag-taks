@@ -6,7 +6,8 @@ import React, { useState, useRef, useEffect } from 'react'
 import { ChatMessage } from './components/ChatMessage'
 import { ChatInput } from './components/ChatInput'
 import { DocumentUpload } from './components/DocumentUpload'
-import { Message } from './types/chat'
+import { ConversationSidebar } from './components/ConversationSidebar'
+import { Message, Session } from './types/chat'
 import { api } from './services/api'
 import { useTheme } from './hooks/useTheme'
 import { useLocalStorage } from './hooks/useLocalStorage'
@@ -16,11 +17,46 @@ type View = 'chat' | 'upload'
 
 function App() {
   const [theme, setTheme] = useTheme()
-  const [messages, setMessages] = useLocalStorage<Message[]>('messages', [])
+  const [sessions, setSessions] = useLocalStorage<Session[]>('sessions', [])
+  const [currentSessionId, setCurrentSessionId] = useLocalStorage<string>('currentSessionId', '')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [currentView, setCurrentView] = useState<View>('chat')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Initialize or get current session
+  useEffect(() => {
+    if (sessions.length === 0 || !currentSessionId) {
+      createNewSession()
+    }
+  }, [])
+
+  const createNewSession = () => {
+    const newSession: Session = {
+      id: uuidv4(),
+      title: `Chat ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`,
+      collectionName: 'rag_documents',
+      messages: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+    setSessions([newSession, ...sessions])
+    setCurrentSessionId(newSession.id)
+  }
+
+  const currentSession = sessions.find((s) => s.id === currentSessionId)
+  const messages = currentSession?.messages || []
+
+  const updateCurrentSession = (newMessages: Message[]) => {
+    setSessions(
+      sessions.map((s) =>
+        s.id === currentSessionId
+          ? { ...s, messages: newMessages, updatedAt: new Date() }
+          : s
+      )
+    )
+  }
 
   // Auto-scroll to bottom when new messages arrive
   const scrollToBottom = () => {
@@ -43,7 +79,7 @@ function App() {
       timestamp: new Date(),
       queryType: 'general',
     }
-    setMessages([...messages, userMessage])
+    updateCurrentSession([...messages, userMessage])
 
     try {
       // Call API with default parameters
@@ -63,30 +99,51 @@ function App() {
           model: response.model,
         },
       }
-      setMessages([...messages, userMessage, assistantMessage])
+      updateCurrentSession([...messages, userMessage, assistantMessage])
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to get response'
       setError(errorMessage)
-      setMessages([...messages, userMessage])
+      updateCurrentSession([...messages, userMessage])
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className={`h-screen flex flex-col ${theme === 'dark' ? 'dark' : ''}`}>
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 p-4">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">RAG Chatbot</h1>
-          <button
-            onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-            className="p-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
-            aria-label="Toggle theme"
-          >
-            {theme === 'light' ? '🌙' : '☀️'}
-          </button>
-        </div>
+    <div className={`h-screen flex flex-row ${theme === 'dark' ? 'dark' : ''}`}>
+      {/* Sidebar */}
+      <ConversationSidebar
+        sessions={sessions}
+        currentSessionId={currentSessionId}
+        onSelectSession={setCurrentSessionId}
+        onNewConversation={createNewSession}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+      />
+
+      {/* Main Content */}
+      <div className="flex flex-col flex-1">
+        {/* Header */}
+        <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 p-4">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="md:hidden p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                aria-label="Toggle sidebar"
+              >
+                ☰
+              </button>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">RAG Chatbot</h1>
+            </div>
+            <button
+              onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+              className="p-2 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
+              aria-label="Toggle theme"
+            >
+              {theme === 'light' ? '🌙' : '☀️'}
+            </button>
+          </div>
 
         {/* Navigation Tabs */}
         <nav className="flex gap-2 border-t border-gray-200 dark:border-gray-700 pt-3">
@@ -158,6 +215,7 @@ function App() {
           <DocumentUpload />
         </main>
       )}
+      </div>
     </div>
   )
 }
