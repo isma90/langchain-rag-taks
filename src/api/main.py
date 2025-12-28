@@ -5,18 +5,22 @@ Production-ready REST API for RAG pipeline
 Includes automatic rate limiting to stay within OpenAI's 3,500 RPM tier.
 """
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import logging
 import time
+import uuid
+import json
+import asyncio
 
 from src.services.rag.rag_service import RAGService, RAGResponse
 from src.config.settings import settings
 from src.utils.logging_config import get_logger
 from src.services.rate_limiting import add_rate_limit_middleware, get_rate_limiter
+from src.services.processing import get_progress_tracker, ProcessingStatus
 
 logger = get_logger(__name__)
 
@@ -94,6 +98,25 @@ class ErrorResponse(BaseModel):
     error: str
     detail: str
     timestamp: float
+
+
+class UploadStartResponse(BaseModel):
+    """Response when upload is received"""
+    upload_id: str
+    status: str
+    message: str
+    timestamp: float
+
+
+class ProgressResponse(BaseModel):
+    """Progress update response"""
+    upload_id: str
+    status: str
+    progress_percent: float
+    current_chunk: int
+    total_chunks: int
+    message: str
+    timestamp: str
 
 
 # ============================================================================
@@ -198,6 +221,151 @@ async def initialize_rag(request: InitializeRequest):
     except Exception as e:
         logger.error(f"Error initializing RAG: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/upload", response_model=UploadStartResponse)
+async def start_upload(request: InitializeRequest, background_tasks: BackgroundTasks):
+    """
+    Start document upload with background processing.
+
+    Returns immediately with upload_id. Client should connect to WebSocket
+    endpoint /ws/{upload_id} to receive progress updates.
+    """
+    try:
+        # Generate unique upload ID
+        upload_id = str(uuid.uuid4())
+
+        logger.info(f"Starting upload {upload_id} with {len(request.documents)} documents")
+
+        # Convert input documents to LangChain format
+        from langchain_core.documents import Document
+        documents = [
+            Document(
+                page_content=doc.content,
+                metadata={"source": doc.source, **(doc.metadata or {})}
+            )
+            for doc in request.documents
+        ]
+
+        # Initialize progress tracker
+        progress_tracker = get_progress_tracker()
+
+        # Estimate chunks (rough: ~3 chunks per document)
+        estimated_chunks = max(len(documents) * 3, 1)
+        await progress_tracker.start_upload(upload_id, estimated_chunks)
+
+        # Schedule background processing
+        background_tasks.add_task(
+            _process_upload_background,
+            upload_id,
+            request.collection_name,
+            documents,
+            request.force_recreate,
+        )
+
+        return UploadStartResponse(
+            upload_id=upload_id,
+            status="received",
+            message=f"Upload received. Total documents: {len(documents)}",
+            timestamp=time.time()
+        )
+
+    except Exception as e:
+        logger.error(f"Error starting upload: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.websocket("/ws/{upload_id}")
+async def websocket_progress(websocket: WebSocket, upload_id: str):
+    """
+    WebSocket endpoint for real-time progress updates.
+
+    Clients connect with upload_id and receive progress messages as documents
+    are processed.
+    """
+    await websocket.accept()
+
+    try:
+        progress_tracker = get_progress_tracker()
+
+        logger.info(f"WebSocket client connected for upload {upload_id}")
+
+        # Register callback for this upload
+        async def send_progress(update):
+            try:
+                await websocket.send_json(update.to_dict())
+            except Exception as e:
+                logger.error(f"Error sending progress update: {e}")
+
+        progress_tracker.register_callback(upload_id, send_progress)
+
+        # Keep connection alive and listen for any client messages
+        # (client can send "close" to disconnect cleanly)
+        while True:
+            try:
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=300)
+                if data == "close":
+                    break
+            except asyncio.TimeoutError:
+                # Timeout after 5 minutes
+                logger.warning(f"WebSocket timeout for upload {upload_id}")
+                break
+
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket client disconnected for upload {upload_id}")
+    except Exception as e:
+        logger.error(f"WebSocket error for upload {upload_id}: {e}")
+    finally:
+        try:
+            await websocket.close()
+        except:
+            pass
+
+
+async def _process_upload_background(
+    upload_id: str,
+    collection_name: str,
+    documents,
+    force_recreate: bool,
+):
+    """
+    Process upload in background and send progress updates.
+    """
+    progress_tracker = get_progress_tracker()
+
+    try:
+        logger.info(f"Starting background processing for upload {upload_id}")
+
+        await progress_tracker.update_progress(
+            upload_id,
+            ProcessingStatus.EXTRACTING,
+            0,
+            "Extracting content from documents..."
+        )
+
+        # Initialize service
+        global _collection_name
+        _collection_name = collection_name
+
+        service = RAGService(collection_name=collection_name)
+
+        # Process with progress tracking
+        metrics = await asyncio.to_thread(
+            service.initialize_from_documents_with_progress,
+            documents,
+            force_recreate,
+            upload_id,
+            progress_tracker,
+        )
+
+        # Mark as completed
+        await progress_tracker.complete_upload(upload_id)
+
+        logger.info(f"Completed processing for upload {upload_id}")
+
+    except Exception as e:
+        logger.error(f"Error processing upload {upload_id}: {e}")
+        await progress_tracker.fail_upload(upload_id, str(e))
 
 
 @app.post("/question", response_model=AnswerResponse)

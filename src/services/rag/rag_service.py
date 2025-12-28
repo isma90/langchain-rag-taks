@@ -112,6 +112,58 @@ class RAGService:
             "estimated_cost_usd": pipeline_metrics.estimated_cost_usd,
         }
 
+    def initialize_from_documents_with_progress(
+        self,
+        documents: List[Document],
+        force_recreate: bool = False,
+        upload_id: Optional[str] = None,
+        progress_tracker = None,
+    ) -> Dict[str, Any]:
+        """
+        Initialize RAG service with progress tracking.
+
+        Args:
+            documents: List of Document objects
+            force_recreate: Force recreation of collection
+            upload_id: Upload ID for progress tracking
+            progress_tracker: ProgressTracker instance for sending updates
+
+        Returns:
+            Dictionary with initialization metrics
+        """
+        import asyncio
+        from src.services.processing import ProcessingStatus
+
+        logger.info(f"Initializing RAG service with {len(documents)} documents (upload: {upload_id})")
+
+        self.pipeline_integrator.force_recreate_collection = force_recreate
+
+        # Get event loop for async operations
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        # Process documents through pipeline
+        # Note: Pipeline integrator will send progress updates
+        pipeline_metrics = self.pipeline_integrator.process_documents(documents)
+
+        # Initialize chain builder with retriever
+        retriever = self.pipeline_integrator.get_retriever(query_type="general")
+        self.chain_builder = RAGChainBuilder(retriever)
+
+        logger.info(f"RAG service initialized: {pipeline_metrics.total_vectors} vectors indexed")
+
+        return {
+            "total_documents": pipeline_metrics.total_documents,
+            "total_chunks": pipeline_metrics.total_chunks,
+            "total_vectors": pipeline_metrics.total_vectors,
+            "collection_name": pipeline_metrics.collection_name,
+            "processing_time_ms": pipeline_metrics.total_processing_time_ms,
+            "estimated_cost_usd": pipeline_metrics.estimated_cost_usd,
+        }
+
     def answer_question(
         self,
         question: str,

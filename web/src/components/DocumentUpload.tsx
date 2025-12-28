@@ -11,12 +11,25 @@ interface DocumentInput {
   metadata?: Record<string, any>
 }
 
+interface ProgressUpdate {
+  upload_id: string
+  status: string
+  progress_percent: number
+  current_chunk: number
+  total_chunks: number
+  message: string
+  timestamp: string
+}
+
 export const DocumentUpload: React.FC = () => {
   const [files, setFiles] = useState<File[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [dragActive, setDragActive] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<ProgressUpdate | null>(null)
+  const [uploadId, setUploadId] = useState<string | null>(null)
+  const [ws, setWs] = useState<WebSocket | null>(null)
 
   const handleDrag = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
@@ -58,6 +71,7 @@ export const DocumentUpload: React.FC = () => {
     setIsLoading(true)
     setError(null)
     setSuccess(null)
+    setUploadProgress(null)
 
     try {
       // Read files and prepare documents
@@ -77,24 +91,66 @@ export const DocumentUpload: React.FC = () => {
         })
       }
 
-      // Call initialize API
-      const response = await api.initializeCollection({
+      // Start upload and get upload ID
+      const uploadResponse = await api.startUpload({
         collection_name: 'rag_documents',
         documents,
         force_recreate: false,
       })
 
-      setSuccess(
-        `Successfully uploaded ${documents.length} document(s)! ${response.total_documents} documents total in collection.`
-      )
-      setFiles([])
+      const id = uploadResponse.upload_id
+      setUploadId(id)
+      setSuccess(`Upload received! Processing ${documents.length} document(s)...`)
 
-      // Clear success message after 5 seconds
-      setTimeout(() => setSuccess(null), 5000)
+      // Connect to WebSocket for progress updates
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+      const wsUrl = apiUrl.replace('http', 'ws')
+      const websocket = new WebSocket(`${wsUrl}/ws/${id}`)
+
+      websocket.onopen = () => {
+        console.log('Connected to progress WebSocket')
+      }
+
+      websocket.onmessage = (event) => {
+        const update: ProgressUpdate = JSON.parse(event.data)
+        setUploadProgress(update)
+
+        // Handle completion
+        if (update.status === 'completed') {
+          setSuccess(`✅ Processing complete! ${update.message}`)
+          setFiles([])
+          if (websocket) {
+            websocket.send('close')
+            websocket.close()
+          }
+          // Clear success message after 5 seconds
+          setTimeout(() => {
+            setSuccess(null)
+            setUploadProgress(null)
+          }, 5000)
+        } else if (update.status === 'failed') {
+          setError(`❌ Processing failed: ${update.message}`)
+          if (websocket) {
+            websocket.send('close')
+            websocket.close()
+          }
+        }
+      }
+
+      websocket.onerror = (error) => {
+        console.error('WebSocket error:', error)
+        setError('Connection lost. Please try again.')
+      }
+
+      websocket.onclose = () => {
+        console.log('WebSocket closed')
+      }
+
+      setWs(websocket)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to upload documents'
       setError(errorMessage)
-    } finally {
       setIsLoading(false)
     }
   }
@@ -185,6 +241,36 @@ export const DocumentUpload: React.FC = () => {
         <div className="mt-4 p-4 bg-green-100 dark:bg-green-900 border border-green-400 dark:border-green-700 text-green-700 dark:text-green-200 rounded">
           <p className="font-medium">✓ Success</p>
           <p className="text-sm mt-1">{success}</p>
+        </div>
+      )}
+
+      {/* Progress Bar */}
+      {uploadProgress && uploadProgress.status !== 'completed' && (
+        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900 border border-blue-400 dark:border-blue-700 rounded">
+          <div className="flex justify-between items-center mb-2">
+            <p className="text-sm font-medium text-blue-700 dark:text-blue-200">
+              {uploadProgress.status === 'received' && '📥 Received'}
+              {uploadProgress.status === 'extracting' && '🔍 Extracting'}
+              {uploadProgress.status === 'chunking' && '✂️ Chunking'}
+              {uploadProgress.status === 'enriching' && '✨ Enriching metadata'}
+              {uploadProgress.status === 'indexing' && '🗂️ Indexing'}
+            </p>
+            <p className="text-sm font-medium text-blue-700 dark:text-blue-200">
+              {Math.round(uploadProgress.progress_percent)}%
+            </p>
+          </div>
+          <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-3 overflow-hidden">
+            <div
+              className="bg-blue-500 h-3 rounded-full transition-all duration-300"
+              style={{ width: `${uploadProgress.progress_percent}%` }}
+            />
+          </div>
+          <p className="text-xs text-blue-600 dark:text-blue-300 mt-2">
+            {uploadProgress.message}
+          </p>
+          <p className="text-xs text-blue-600 dark:text-blue-300">
+            Chunk {uploadProgress.current_chunk} of {uploadProgress.total_chunks}
+          </p>
         </div>
       )}
 

@@ -78,6 +78,19 @@ export const api = {
   },
 
   /**
+   * Start document upload with background processing
+   * Returns upload_id for WebSocket connection
+   */
+  async startUpload(params: {
+    collection_name: string
+    documents: Array<{ content: string; source: string; metadata?: Record<string, any> }>
+    force_recreate?: boolean
+  }): Promise<{ upload_id: string; status: string; message: string; timestamp: number }> {
+    const { data } = await apiClient.post('/upload', params)
+    return data
+  },
+
+  /**
    * Ask question to RAG pipeline
    */
   async askQuestion(
