@@ -58,12 +58,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copiar venv desde builder (cached dependencies)
 COPY --from=builder /opt/venv /opt/venv
 
-# Copiar solo archivos de configuración y estructura (pequeño layer)
-COPY --chown=appuser:appuser .env .env.example ./
+# Copiar aplicación (solo código fuente)
 COPY --chown=appuser:appuser src ./src
-
-# Copiar assets/data si existen (opcional)
-COPY --chown=appuser:appuser public ./public 2>/dev/null || true
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
