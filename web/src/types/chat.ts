@@ -19,7 +19,6 @@ export interface Message {
 export interface Session {
   id: string
   title: string
-  collectionName: string
   messages: Message[]
   createdAt: Date
   updatedAt: Date

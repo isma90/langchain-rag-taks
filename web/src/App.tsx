@@ -11,6 +11,7 @@ import { Message, Session } from './types/chat'
 import { api } from './services/api'
 import { useTheme } from './hooks/useTheme'
 import { useLocalStorage } from './hooks/useLocalStorage'
+import { GLOBAL_RAG_COLLECTION } from './constants'
 import { v4 as uuidv4 } from 'uuid'
 
 type View = 'chat' | 'upload'
@@ -36,7 +37,6 @@ function App() {
     const newSession: Session = {
       id: uuidv4(),
       title: `Chat ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`,
-      collectionName: 'rag_documents',
       messages: [],
       createdAt: new Date(),
       updatedAt: new Date(),

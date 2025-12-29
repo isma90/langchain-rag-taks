@@ -4,6 +4,7 @@
 
 import React, { useState } from 'react'
 import { api } from '../services/api'
+import { GLOBAL_RAG_COLLECTION } from '../constants'
 
 interface DocumentInput {
   content: string
@@ -93,7 +94,7 @@ export const DocumentUpload: React.FC = () => {
 
       // Start upload and get upload ID
       const uploadResponse = await api.startUpload({
-        collection_name: 'rag_documents',
+        collection_name: GLOBAL_RAG_COLLECTION,
         documents,
         force_recreate: false,
       })
